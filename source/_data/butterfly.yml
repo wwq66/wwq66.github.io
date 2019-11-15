@@ -82,7 +82,10 @@ local_search:
 # Please see doc for more details: https://jerryc.me/posts/21cfbf15/#MathJax
 # ---------------
 mathjax:
-  enable: True
+  enable: true
+  per_page: false
+  cdn: //cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML
+
 
 # KaTeX
 # ---------------
