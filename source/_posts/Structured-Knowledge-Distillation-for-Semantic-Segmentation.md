@@ -38,13 +38,25 @@ $$a\_{ij} = \frac{\mathbf{f}^{\top}\_{i}\mathbf{f}\_{j}}{||\mathbf{f}\_{i}||\_{2
 **Holistic distillation**
 我们计算分割图的holistic embedding来将复杂网络和简单网络生成的分割图之间的高阶关系对齐。这里采用了传统的GAN来解决holistic distillation问题。简单网络可以看成生成器，其预测出的分割图$\mathbf{Q^s}$被视为假样本，复杂网络预测出的分割图$\mathbf{Q^t}$被视为真样本。我们希望$\mathbf{Q^s}$能尽可能地接近$\mathbf{Q^t}$。
 Wasserstein distance用来衡量两个不同分布的差异，其定义是将模型分布$p\_{s}(\mathbf{Q}^s)$向真实分布$p\_{t}(\mathbf{Q}^t)$靠拢时所花的最小代价。它可以用来解决梯度消失或梯度爆炸的问题。公式如下
-$$\ell\_{ho}(S,D) = \mathbb{E}\_{\mathbf{Q}^t \sim p\_{s}(\mathbf{Q}^s)}[D(\mathbf{Q}^s|\mathbf{I})] - \mathbb{E}\_{\mathbf{Q}^t \sim p\_{t}(\mathbf{Q}^t)}[D(\mathbf{Q}^t|\mathbf{I})]$$
-其中$、mathbb{E}[\cdot]$为求均值，$D(\cdot)$是一个嵌入式网络，即GAN中的判别器，它将$\mathbf{Q}$和$\mathbf{I}$一起投影到一个整体的嵌入分数中。
+$$\ell\_{ho}(S,D) = \mathbb{E}\_{\mathbf{Q}^s \sim p\_{s}(\mathbf{Q}^s)}[D(\mathbf{Q}^s|\mathbf{I})] - \mathbb{E}\_{\mathbf{Q}^t \sim p\_{t}(\mathbf{Q}^t)}[D(\mathbf{Q}^t|\mathbf{I})]$$
+其中$\mathbb{E}[\cdot]$为求均值，$D(\cdot)$是一个嵌入式网络，即GAN中的判别器，它将$\mathbf{Q}$和$\mathbf{I}$一起投影到一个整体的嵌入分数中。
 
 分割图和RGB图一起concat后送入判别网络D，D是一个全卷积网络，共五个卷积层。在最后三个卷积层之间，我们插入了两个注意力模块用来捕获结构信息。在concat层前面我们添加了一个BN层用来处理RGB图像和logits之间的不同尺度问题。
 
 这样的判别器可以产生一个整体嵌入来表征输入图像和分割图像的匹配程度。我们进一步加入了一个池化层来将整体嵌入池化为一个分数。在对抗训练中我们加入wasserstein distance来训练判别器，使其给予教师网络输出的分割图一个更高的分数，给予学生网络输出的分割图一个更低的分数。在此过程中，我们将评估分割图质量的知识提取到判别器中。同时我们对学生网络进行训练，使其在判别器下获得更高的分数。
 
 ## 优化
-整个目标函数由传统的pixel-wise多分类交叉熵损失$\ell\_mc(S)$和结构蒸馏项组成。
-$$\ell(S,D) = \ell\_{mc}(S) + \lambda\_{1}() - \lambda\_{2}\ell\_{}$$
+整个目标函数由传统的pixel-wise多分类交叉熵损失$\ell\_{mc}(S)$和结构蒸馏项组成。
+$$\ell(S,D) = \ell\_{mc}(S) + \lambda\_{1}(\ell\_{pi}(S) + \ell\_{pa}(S)) - \lambda\_{2}\ell\_{ho}(S,D)$$
+$\lambda\_{1}$和$\lambda\_{2}$取值为10和0.1，使得这些loss在同一数量级上。我们最小化简单网络S的目标函数，同时最大化判别器D的目标函数。通过以下两个步骤实现：
+1. 训练判别器D。等价于最小化$\ell\_{ho}(S,D)$，其目的在于对教师网络生成的真样本给出一个高的分数，对于学生网络生成的假样本给出一个低的分数。
+2. 训练简单网络S。给定一个判别网络，其目标是最小化交叉熵损失和distillation损失
+$$\ell(S) = \ell\_{mc}(S) + \lambda\_{1}(\ell\_{pi}(S) + \ell\_{pa}(S)) - \lambda\_{2}\ell\_{ho}^{s}(S)$$
+其中$$\ell\_{ho}^{s}(S) = \mathbb{E}\_{\mathbf{Q}^s \sim p\_{s}(\mathbf{Q}^s)}[D(\mathbf{Q}^s|\mathbf{I})]$$
+我们希望简单网络S在判别器D的帮助下得到一个更高的分数。
+
+# 实验
+**模型蒸馏的效果**
+![图3](/img/pic3.jpg)
+可以看到同时加入了pixel-wise distillation、pair-wise distillation和holistic distillation损失的实验效果最好。
+
