@@ -3,6 +3,7 @@ title: 【2019 CVPR】Structured Knowledge Distillation for Semantic Segmentatio
 date: 2019-11-13 20:45:52
 tags: 
   - Segmentation
+  - Distillation
 categories: 
   - Paper Reading
 ---
